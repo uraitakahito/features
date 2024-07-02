@@ -402,7 +402,11 @@ else
     if [ "${USER_GID}" = "automatic" ]; then
         groupadd $USERNAME
     else
-        groupadd --gid $USER_GID $USERNAME
+        if getent group $USER_GID > /dev/null 2>&1; then
+            # do nothing
+        else
+            groupadd --gid $USER_GID $USERNAME
+        fi
     fi
     if [ "${USER_UID}" = "automatic" ]; then
         useradd -s /bin/bash --gid $USERNAME -m $USERNAME
