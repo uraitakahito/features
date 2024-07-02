@@ -417,6 +417,7 @@ else
             useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME
         fi
     fi
+    group_name="$(id -gn $USERNAME)"
 fi
 
 # Add add sudo support for non-root user
