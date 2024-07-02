@@ -403,7 +403,7 @@ else
         groupadd $USERNAME
     else
         if getent group $USER_GID > /dev/null 2>&1; then
-            # do nothing
+            echo "USER_GID $USER_GID already exists."
         else
             groupadd --gid $USER_GID $USERNAME
         fi
