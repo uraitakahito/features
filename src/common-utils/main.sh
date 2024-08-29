@@ -137,6 +137,7 @@ install_debian_packages() {
     fi
 
     # Install eza
+    # https://github.com/eza-community/eza/blob/main/INSTALL.md
     apt-get update -qq && \
       apt-get install -y -qq --no-install-recommends \
         gpg \
