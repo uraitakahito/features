@@ -136,6 +136,20 @@ install_debian_packages() {
         apt-get install -y zsh
     fi
 
+    # Install eza
+    apt-get update -qq && \
+      apt-get install -y -qq --no-install-recommends \
+        gpg \
+        wget && \
+      apt-get clean && \
+      rm -rf /var/lib/apt/lists/* && \
+      mkdir -p /etc/apt/keyrings && \
+      wget -qO- https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | gpg --dearmor -o /etc/apt/keyrings/gierens.gpg && \
+      echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" | tee /etc/apt/sources.list.d/gierens.list && \
+      chmod 644 /etc/apt/keyrings/gierens.gpg /etc/apt/sources.list.d/gierens.list && \
+      apt update && \
+      apt install -y eza
+
     # Get to latest versions of all packages
     if [ "${UPGRADE_PACKAGES}" = "true" ]; then
         apt-get -y upgrade --no-install-recommends
