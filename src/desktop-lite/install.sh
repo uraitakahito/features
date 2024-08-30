@@ -310,7 +310,7 @@ export LANGUAGE="${LANGUAGE:-"en_US.UTF-8"}"
 startInBackgroundIfNotRunning()
 {
     log "Starting \$1."
-    echo -e "\n** \$(date) **" | sudoIf tee -a /tmp/"$1.log" > /dev/null
+    echo -e "\n** \$(date) **" | sudoIf tee -a /tmp/\$1.log > /dev/null
     if ! pgrep -x \$1 > /dev/null; then
         keepRunningInBackground "\$@"
         while ! pgrep -x \$1 > /dev/null; do
@@ -318,7 +318,7 @@ startInBackgroundIfNotRunning()
         done
         log "\$1 started."
     else
-        echo "\$1 is already running." | sudoIf tee -a /tmp/"$1.log" > /dev/null
+        echo "\$1 is already running." | sudoIf tee -a /tmp/\$1.log > /dev/null
         log "\$1 is already running."
     fi
 }
@@ -326,7 +326,7 @@ startInBackgroundIfNotRunning()
 # Keep command running in background
 keepRunningInBackground()
 {
-    (\$2 bash -c "while :; do echo [\\\$(date)] Process started.; \$3; echo [\\\$(date)] Process exited!; sleep 5; done 2>&1" | sudoIf tee -a /tmp/"$1.log" > /dev/null & echo "\$!" | sudoIf tee /tmp/"$1.pid" > /dev/null)
+    (\$2 bash -c "while :; do echo [\\\$(date)] Process started.; \$3; echo [\\\$(date)] Process exited!; sleep 5; done 2>&1" | sudoIf tee -a /tmp/\$1.log > /dev/null & echo "\$!" | sudoIf tee /tmp/\$1.pid > /dev/null)
 }
 
 # Use sudo to run as root when required
@@ -395,7 +395,7 @@ fi
 
 # Run whatever was passed in
 if [ -n "$1" ]; then
-    log "Executing \"$@\"."
+    log "Executing \"\$@\"."
     exec "$@"
 else
     log "No command provided to execute."
