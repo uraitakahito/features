@@ -136,6 +136,11 @@ install_debian_packages() {
         apt-get install -y zsh
     fi
 
+    # Install my favorite tools
+    apt-get update -qq && \
+      apt-get install -y -qq --no-install-recommends \
+        bat
+
     # Install eza
     # https://github.com/eza-community/eza/blob/main/INSTALL.md
     apt-get update -qq && \
