@@ -422,13 +422,22 @@ else
     if [ "${USER_GID}" = "automatic" ]; then
         groupadd $USERNAME
     else
-        groupadd --gid $USER_GID $USERNAME
+        if getent group $USER_GID > /dev/null 2>&1; then
+            echo "Reuse an already existing USER_GID $USER_GID."
+        else
+            groupadd --gid $USER_GID $USERNAME
+        fi
     fi
     if [ "${USER_UID}" = "automatic" ]; then
         useradd -s /bin/bash --gid $USERNAME -m $USERNAME
     else
-        useradd -s /bin/bash --uid $USER_UID --gid $USERNAME -m $USERNAME
+        if getent group $USERNAME > /dev/null 2>&1; then
+            useradd -s /bin/bash --uid $USER_UID --gid $USERNAME -m $USERNAME
+        else
+            useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME
+        fi
     fi
+    group_name="$(id -gn $USERNAME)"
 fi
 
 # Add add sudo support for non-root user
