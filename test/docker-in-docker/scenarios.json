@@ -217,5 +217,25 @@
                 "azureDnsAutoDetection": false
             }
         }
+    },
+    "alpine_3_19": {
+        "image": "alpine:3.19",
+        "features": {
+            "docker-in-docker": {
+                "version": "latest",
+                "installDockerBuildx": true,
+                "dockerDashComposeVersion": "v2"
+            }
+        }
+    },
+    "alpine_3_20": {
+        "image": "alpine:3.20",
+        "features": {
+            "docker-in-docker": {
+                "version": "latest",
+                "installDockerBuildx": true,
+                "dockerDashComposeVersion": "v2"
+            }
+        }
     }
 }
