@@ -19,6 +19,7 @@ USER_UID="${UID:-"automatic"}"
 USER_GID="${GID:-"automatic"}"
 ADD_NON_FREE_PACKAGES="${NONFREEPACKAGES:-"false"}"
 INSTALL_SSL="${INSTALLSSL:-"true"}"
+ADD_USER_TO_ROOT_GROUP="${ADDUSERTOROOTGROUP:-"false"}"
 
 MARKER_FILE="/usr/local/etc/vscode-dev-containers/common"
 

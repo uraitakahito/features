@@ -19,6 +19,7 @@ USER_UID="${USERUID:-"automatic"}"
 USER_GID="${USERGID:-"automatic"}"
 ADD_NON_FREE_PACKAGES="${NONFREEPACKAGES:-"false"}"
 INSTALL_SSL="${INSTALLSSL:-"true"}"
+ADD_USER_TO_ROOT_GROUP="${ADDUSERTOROOTGROUP:-"false"}"
 
 MARKER_FILE="/usr/local/etc/vscode-dev-containers/common"
 
@@ -461,6 +462,12 @@ if [ "${USERNAME}" != "root" ] && [ "${EXISTING_NON_ROOT_USER}" != "${USERNAME}"
     echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME
     chmod 0440 /etc/sudoers.d/$USERNAME
     EXISTING_NON_ROOT_USER="${USERNAME}"
+fi
+
+# Add user to root group if requested
+if [ "${ADD_USER_TO_ROOT_GROUP}" = "true" ] && [ "${USERNAME}" != "root" ]; then
+    echo "Adding ${USERNAME} to root group..."
+    usermod -aG root ${USERNAME}
 fi
 
 # *********************************

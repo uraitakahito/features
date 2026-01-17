@@ -60,6 +60,11 @@
             "default": "automatic",
             "description": "Enter GID for non-root user"
         },
+        "addUserToRootGroup": {
+            "type": "boolean",
+            "default": false,
+            "description": "Add the non-root user to the root group?"
+        },
         "nonFreePackages": {
             "type": "boolean",
             "default": false,
