@@ -15,6 +15,13 @@ INSTALL_OH_MY_ZSH="${INSTALLOHMYZSH:-"true"}"
 INSTALL_OH_MY_ZSH_CONFIG="${INSTALLOHMYZSHCONFIG:-"true"}"
 UPGRADE_PACKAGES="${UPGRADEPACKAGES:-"true"}"
 USERNAME="${USERNAME:-"automatic"}"
+# NOTE: USER_UID and USER_GID defined here are NOT used in this script.
+# This script executes main.sh via 'exec', and main.sh reads USERUID/USERGID
+# (not UID/GID) from environment variables.
+# To set custom UID/GID, use USERUID and USERGID when calling this script:
+#
+#   USERUID=1001 USERGID=1001 ./install.sh
+#
 USER_UID="${UID:-"automatic"}"
 USER_GID="${GID:-"automatic"}"
 ADD_NON_FREE_PACKAGES="${NONFREEPACKAGES:-"false"}"
