@@ -410,7 +410,7 @@ fi
 
 # Run whatever was passed in
 if [ -n "\$1" ]; then
-    log "Executing \$@"
+    log "Executing \"\$@\"."
     exec "\$@"
 else
     log "No command provided to execute."
