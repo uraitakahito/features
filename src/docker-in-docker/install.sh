@@ -81,10 +81,6 @@ pkg_mgr_update() {
                 ${PKG_MGR_CMD} makecache
             fi
             ;;
-        alpine)
-            echo "Running apk update..."
-            apk update
-            ;;
     esac
 }
 
@@ -101,18 +97,6 @@ check_packages() {
             if ! rpm -q "$@" > /dev/null 2>&1; then
                 pkg_mgr_update
                 ${PKG_MGR_CMD} -y install "$@"
-            fi
-            ;;
-        alpine)
-            local missing_packages=""
-            for pkg in "$@"; do
-                if ! apk info -e "$pkg" > /dev/null 2>&1; then
-                    missing_packages="$missing_packages $pkg"
-                fi
-            done
-            if [ -n "$missing_packages" ]; then
-                pkg_mgr_update
-                apk add --no-cache $missing_packages
             fi
             ;;
     esac
@@ -255,10 +239,6 @@ elif [[ "${ID}" = "rhel" || "${ID}" = "fedora" || "${ID}" = "azurelinux" || "${I
     fi
     
     architecture="$(rpm --eval '%{_arch}' 2>/dev/null || uname -m)"
-elif [ "${ID}" = "alpine" ]; then
-    ADJUSTED_ID="alpine"
-    PKG_MGR_CMD="apk"
-    architecture="$(apk --print-arch 2>/dev/null || uname -m)"
 else
     err "Linux distro ${ID} not supported."
     exit 1
@@ -277,12 +257,7 @@ if [ "${USE_MOBY}" = "true" ] && [ "${ID}" = "debian" ] && [ "${VERSION_CODENAME
 fi
 
 # Check if distro is supported
-if [ "${ADJUSTED_ID}" = "alpine" ]; then
-    echo "(*) Alpine Linux detected - using Alpine community Docker packages"
-    if [ "${USE_MOBY}" = "false" ]; then
-        echo "(*) Note: 'moby: false' option is ignored on Alpine. Alpine packages are Moby-based."
-    fi
-elif [ "${USE_MOBY}" = "true" ]; then
+if [ "${USE_MOBY}" = "true" ]; then
     if [ "${ADJUSTED_ID}" = "debian" ]; then
         if [[ "${DOCKER_MOBY_ARCHIVE_VERSION_CODENAMES}" != *"${VERSION_CODENAME}"* ]]; then
             err "Unsupported distribution version '${VERSION_CODENAME}'. To resolve, either: (1) set feature option '\"moby\": false' , or (2) choose a compatible OS distribution"
@@ -306,22 +281,20 @@ else
         fi
         echo "(*) ${VERSION_CODENAME} is supported for Docker CE installation (supported: ${DOCKER_LICENSED_ARCHIVE_VERSION_CODENAMES}) - setting up Docker repository"
     elif [ "${ADJUSTED_ID}" = "rhel" ]; then
-
+        
         echo "RHEL-based system (${ID}) detected - using Docker CE packages"
     fi
 fi
 
 # Install base dependencies
-base_packages="curl ca-certificates pigz iptables gnupg wget jq"
+base_packages="curl ca-certificates pigz iptables gnupg2 wget jq"
 case ${ADJUSTED_ID} in
     debian)
-        check_packages apt-transport-https ${base_packages} gnupg2 dirmngr
+        check_packages apt-transport-https $base_packages dirmngr
         ;;
     rhel)
-        check_packages $base_packages tar gawk shadow-utils policycoreutils procps-ng systemd-libs systemd-devel
-        ;;
-    alpine)
-        check_packages ${base_packages} bash shadow openrc
+        check_packages $base_packages tar gawk shadow-utils policycoreutils  procps-ng systemd-libs systemd-devel
+       
         ;;
 esac
 
@@ -697,28 +670,6 @@ else
                 fi
             fi
             ;;
-        alpine)
-            echo "(*) Installing Docker on Alpine Linux..."
-
-            # Install Docker engine and CLI
-            set +e
-            apk add --no-cache docker docker-cli containerd
-            exit_code=$?
-            set -e
-
-            if [ ${exit_code} -ne 0 ]; then
-                err "Failed to install Docker packages on Alpine Linux."
-                exit 1
-            fi
-
-            # Install Docker Compose v2
-            if [ "${DOCKER_DASH_COMPOSE_VERSION}" != "none" ] && [ "${DOCKER_DASH_COMPOSE_VERSION}" != "v1" ]; then
-                apk add --no-cache docker-cli-compose || echo "(*) docker-cli-compose not available in Alpine repos. Will install manually later."
-            fi
-
-            # Enable Docker service with OpenRC
-            rc-update add docker default 2>/dev/null || true
-            ;;
     esac
 fi
 
@@ -830,13 +781,8 @@ if [ "${INSTALL_DOCKER_COMPOSE_SWITCH}" = "true" ] && ! type compose-switch > /d
         # TODO: Verify checksum once available: https://github.com/docker/compose-switch/issues/11
         # Setup v1 CLI as alternative in addition to compose-switch (which maps to v2)
         mv "${current_compose_path}" "${target_compose_path}"
-        if [ "${ADJUSTED_ID}" = "alpine" ]; then
-            # Alpine doesn't have update-alternatives, use symlinks instead
-            ln -sf /usr/local/bin/compose-switch ${docker_compose_path}
-        else
-            update-alternatives --install ${docker_compose_path} docker-compose /usr/local/bin/compose-switch 99
-            update-alternatives --install ${docker_compose_path} docker-compose "${target_compose_path}" 1
-        fi
+        update-alternatives --install ${docker_compose_path} docker-compose /usr/local/bin/compose-switch 99
+        update-alternatives --install ${docker_compose_path} docker-compose "${target_compose_path}" 1
     else
         err "Skipping installation of compose-switch as docker compose is unavailable..."
     fi
@@ -852,18 +798,10 @@ fi
 echo "docker-init doesn't exist, adding..."
 
 if ! cat /etc/group | grep -e "^docker:" > /dev/null 2>&1; then
-    if [ "${ADJUSTED_ID}" = "alpine" ]; then
-        addgroup -S docker
-    else
         groupadd -r docker
-    fi
 fi
 
-if [ "${ADJUSTED_ID}" = "alpine" ]; then
-    addgroup ${USERNAME} docker
-else
-    usermod -aG docker ${USERNAME}
-fi
+usermod -aG docker ${USERNAME}
 
 # fallback for docker/buildx
 fallback_buildx() {
@@ -877,47 +815,33 @@ fallback_buildx() {
 }
  
 if [ "${INSTALL_DOCKER_BUILDX}" = "true" ]; then
-    # Alpine: Try to use apk package first
-    if [ "${ADJUSTED_ID}" = "alpine" ]; then
-        if apk add --no-cache docker-cli-buildx 2>/dev/null; then
-            echo "(*) Installed docker-cli-buildx from Alpine packages"
-        else
-            echo "(*) docker-cli-buildx not available in Alpine repos, installing manually..."
-            # Fall through to manual installation below
-            ALPINE_BUILDX_MANUAL="true"
-        fi
-    fi
+    buildx_version="latest"
+    docker_buildx_url="https://github.com/docker/buildx"
+    find_version_from_git_tags buildx_version "$docker_buildx_url" "refs/tags/v"
+    echo "(*) Installing buildx ${buildx_version}..."
 
-    # Manual installation for non-Alpine or if Alpine package not available
-    if [ "${ADJUSTED_ID}" != "alpine" ] || [ "${ALPINE_BUILDX_MANUAL}" = "true" ]; then
-        buildx_version="latest"
-        docker_buildx_url="https://github.com/docker/buildx"
-        find_version_from_git_tags buildx_version "$docker_buildx_url" "refs/tags/v"
-        echo "(*) Installing buildx ${buildx_version}..."
+      # Map architecture for buildx downloads
+    case "${architecture}" in
+        amd64|x86_64) target_buildx_arch=amd64 ;;
+        arm64|aarch64) target_buildx_arch=arm64 ;;
+        *) target_buildx_arch=${architecture} ;;
+    esac
 
-        # Map architecture for buildx downloads
-        case "${architecture}" in
-            amd64|x86_64) target_buildx_arch=amd64 ;;
-            arm64|aarch64) target_buildx_arch=arm64 ;;
-            *) target_buildx_arch=${architecture} ;;
-        esac
+    buildx_file_name="buildx-v${buildx_version}.linux-${target_buildx_arch}"
 
-        buildx_file_name="buildx-v${buildx_version}.linux-${target_buildx_arch}"
+    cd /tmp
+    wget https://github.com/docker/buildx/releases/download/v${buildx_version}/${buildx_file_name} || fallback_buildx "$docker_buildx_url"
+    
+    docker_home="/usr/libexec/docker"
+    cli_plugins_dir="${docker_home}/cli-plugins"
 
-        cd /tmp
-        wget https://github.com/docker/buildx/releases/download/v${buildx_version}/${buildx_file_name} || fallback_buildx "$docker_buildx_url"
+    mkdir -p ${cli_plugins_dir}
+    mv ${buildx_file_name} ${cli_plugins_dir}/docker-buildx
+    chmod +x ${cli_plugins_dir}/docker-buildx
 
-        docker_home="/usr/libexec/docker"
-        cli_plugins_dir="${docker_home}/cli-plugins"
-
-        mkdir -p ${cli_plugins_dir}
-        mv ${buildx_file_name} ${cli_plugins_dir}/docker-buildx
-        chmod +x ${cli_plugins_dir}/docker-buildx
-
-        chown -R "${USERNAME}:docker" "${docker_home}"
-        chmod -R g+r+w "${docker_home}"
-        find "${docker_home}" -type d -print0 | xargs -n 1 -0 chmod g+s
-    fi
+    chown -R "${USERNAME}:docker" "${docker_home}"
+    chmod -R g+r+w "${docker_home}"
+    find "${docker_home}" -type d -print0 | xargs -n 1 -0 chmod g+s
 fi
 
 DOCKER_DEFAULT_IP6_TABLES=""
@@ -1089,13 +1013,6 @@ chmod +x /usr/local/share/docker-init.sh
 chown ${USERNAME}:root /usr/local/share/docker-init.sh
 
 # Clean up
-case ${ADJUSTED_ID} in
-    debian)
-        rm -rf /var/lib/apt/lists/*
-        ;;
-    alpine)
-        rm -rf /var/cache/apk/*
-        ;;
-esac
+rm -rf /var/lib/apt/lists/*
 
-echo 'docker-in-docker script has completed!'
+echo 'docker-in-docker-debian script has completed!'
